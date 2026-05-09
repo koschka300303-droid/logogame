@@ -3,31 +3,57 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Лого-игра: Соня и Сима</title>
+    <title>Соня и Сима: Умная версия</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { 
             touch-action: none; 
             overflow: hidden;
-            /* Фон из твоих ассетов */
             background: url('./assets/bg.png') no-repeat center center fixed;
             background-size: cover;
-            background-color: #e0f2fe; /* Запасной цвет */
-            font-family: 'Segoe UI', Roboto, sans-serif;
+            background-color: #e0f2fe;
+            font-family: 'Segoe UI', Tahoma, sans-serif;
         }
 
-        /* Увеличенные персонажи */
+        /* --- БАЗОВЫЕ СТИЛИ (КОМПЬЮТЕР) --- */
         .character { 
             transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); 
-            width: 180px; /* Увеличено с 140px */
-            bottom: 0;
+            width: 250px; 
+            z-index: 20;
+            filter: drop-shadow(0 10px 15px rgba(0,0,0,0.2));
         }
-        @media (min-width: 768px) { .character { width: 280px; } } /* Увеличено с 200px */
+        .basket { width: 200px; z-index: 10; }
+        .card { 
+            touch-action: none; 
+            cursor: grab; 
+            z-index: 100; 
+            width: 200px; 
+            height: 200px;
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+        }
 
-        .basket { width: 140px; transition: transform 0.3s; } /* Увеличено с 110px */
-        @media (min-width: 768px) { .basket { width: 220px; } } /* Увеличено с 160px */
+        /* --- АДАПТАЦИЯ ДЛЯ ТЕЛЕФОНОВ (МОБИЛЬНЫЕ) --- */
+        @media (max-width: 900px) {
+            /* Уменьшаем элементы, чтобы всё влезло горизонтально */
+            .character { width: 120px; }
+            .basket { width: 100px; }
+            .card { width: 130px; height: 130px; }
+            
+            /* Делаем панель счета компактнее */
+            .score-panel { padding: 0.5rem !important; }
+            h1 { font-size: 0.875rem !important; }
+        }
 
-        /* Эффект тряски при ошибке */
+        /* Дополнительная подстройка для очень низких экранов (ландшафт) */
+        @media (max-height: 450px) {
+            .character { width: 100px; }
+            .basket { width: 80px; }
+            .card { width: 110px; height: 110px; }
+        }
+
         .shake { animation: shake 0.5s; }
         @keyframes shake {
             0%, 100% { transform: rotate(0deg); }
@@ -35,65 +61,58 @@
             75% { transform: rotate(10deg); }
         }
 
-        /* Стиль карточки, которую тащим */
-        .card { 
-            touch-action: none; 
-            cursor: grab; 
-            z-index: 100; 
-            width: 140px; 
-            height: 140px;
-            position: absolute;
-            left: 50%;
-            top: 50%;
-            transform: translate(-50%, -50%);
+        .walkway {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            position: relative;
+            width: 100%;
+            height: 100%;
+            padding: 0 5%;
         }
-        @media (min-width: 768px) { .card { width: 190px; height: 190px; } }
     </style>
 </head>
-<body class="h-screen flex flex-col items-center justify-between py-4">
+<body class="h-screen flex flex-col items-center justify-between py-2">
 
-    <div class="w-full max-w-4xl px-4 flex justify-between items-center z-50">
-        <div class="bg-white/90 p-3 rounded-2xl shadow-lg border-2 border-blue-200 flex-1 mr-4">
-            <h1 class="text-sm md:text-lg font-bold text-blue-900 leading-tight">
-                Помоги девочкам дойти до корзин! <br>
-                <span class="text-blue-500 text-xs md:text-sm">Тяни картинку в нужную корзину</span>
-            </h1>
+    <!-- Верхняя панель -->
+    <div class="w-full max-w-6xl px-4 flex justify-between items-center z-50 mt-1 score-panel">
+        <div class="bg-white/90 p-3 rounded-2xl shadow-lg border-b-4 border-blue-400 flex-1 mr-4">
+            <h1 class="text-lg md:text-2xl font-black text-blue-900 leading-tight">СОНЯ И СИМА</h1>
         </div>
         
-        <div class="bg-yellow-400 p-2 md:p-3 rounded-2xl shadow-lg border-4 border-white min-w-[100px] md:min-w-[140px] text-center">
-            <span class="text-[10px] md:text-xs font-black text-yellow-800 uppercase block">Очки</span>
+        <div class="bg-yellow-400 p-2 md:p-4 rounded-2xl shadow-lg border-2 border-white min-w-[80px] md:min-w-[140px] text-center">
             <span id="score-val" class="text-xl md:text-3xl font-black text-blue-900">0</span>
         </div>
     </div>
 
-    <div id="cards-spawn" class="flex-1 w-full relative flex justify-center items-center">
-        </div>
+    <!-- Зона появления карточек -->
+    <div id="cards-spawn" class="flex-1 w-full relative flex justify-center items-center"></div>
 
-    <!-- Область игрового поля (увеличена высота для больших персонажей) -->
-    <div class="relative w-full h-80 md:h-[400px] overflow-hidden">
+    <!-- Игровое поле -->
+    <div class="w-full h-[40vh] md:h-[50vh] flex flex-row mb-4">
         
-        <!-- Левая зона (Соня) -->
-        <div class="absolute left-0 bottom-0 w-1/2 h-full">
-            <img id="sonya" src="./assets/sonya.png" class="character absolute left-2 md:left-8" alt="Соня">
-            <div id="basket-s" class="basket absolute right-2 md:right-10 bottom-4 flex flex-col items-center" data-sound="hard">
+        <!-- Дорожка Сони -->
+        <div class="w-1/2 h-full walkway border-r border-white/20">
+            <img id="sonya" src="./assets/sonya.png" class="character" style="transform: translateX(0);" alt="Соня">
+            <div id="basket-s" class="basket flex flex-col items-center" data-sound="hard">
                 <img src="./assets/basket_s.png" alt="Корзина С">
-                <span class="bg-white/90 px-4 py-1 rounded-full font-black text-blue-700 shadow-md border-2 border-blue-100 mt-2">С</span>
+                <span class="bg-blue-600 px-2 md:px-4 py-0.5 rounded-full text-[10px] md:text-sm font-bold text-white shadow-md uppercase">Соня [С]</span>
             </div>
         </div>
 
-        <!-- Правая зона (Сима) -->
-        <div class="absolute right-0 bottom-0 w-1/2 h-full">
-            <img id="Sima" src="./assets/Sima.png" class="character absolute right-2 md:right-8" alt="Сима">
-            <div id="basket-si" class="basket absolute left-2 md:left-10 bottom-4 flex flex-col items-center" data-sound="soft">
+        <!-- Дорожка Симы -->
+        <div class="w-1/2 h-full walkway">
+            <div id="basket-si" class="basket flex flex-col items-center" data-sound="soft">
                 <img src="./assets/basket_si.png" alt="Корзина Сь">
-                <span class="bg-white/90 px-4 py-1 rounded-full font-black text-green-700 shadow-md border-2 border-green-100 mt-2">Сь</span>
+                <span class="bg-green-600 px-2 md:px-4 py-0.5 rounded-full text-[10px] md:text-sm font-bold text-white shadow-md uppercase">Сима [Сь]</span>
             </div>
+            <!-- Проверь название файла Sima.png -->
+            <img id="sima" src="./assets/Sima.png" class="character" style="transform: translateX(0);" alt="Сима">
         </div>
 
     </div>
 
     <script>
-        // ДАННЫЕ ИГРЫ
         const cardsData = [
             { img: './assets/sanki.png', type: 'hard' },
             { img: './assets/sumka.png', type: 'hard' },
@@ -109,47 +128,37 @@
 
         let score = 0;
         let sonyaSteps = 0;
-        let SimaSteps = 0;
-        const totalPerGirl = 5;
+        let simaSteps = 0;
+        const totalSteps = 5;
 
-        // ОБНОВЛЕНИЕ СЧЕТА
         function updateScore(points) {
             score += points;
             if (score < 0) score = 0;
             document.getElementById('score-val').innerText = score;
         }
 
-        // СОЗДАНИЕ НОВОЙ КАРТОЧКИ
         function createCard() {
             const spawnZone = document.getElementById('cards-spawn');
-            spawnZone.innerHTML = ''; // Очистить старую
-
+            spawnZone.innerHTML = '';
             if (cardsData.length === 0) {
                 setTimeout(() => {
-                    alert(`Ура! Победа! Ты набрал ${score} очков. Соня и Сима очень рады!`);
+                    alert(`Победа! Ты набрал ${score} очков.`);
                     location.reload();
                 }, 800);
                 return;
             }
-
             const index = Math.floor(Math.random() * cardsData.length);
             const data = cardsData.splice(index, 1)[0];
-            
             const card = document.createElement('img');
             card.src = data.img;
-            card.className = 'card object-contain bg-white rounded-[2rem] p-3 shadow-2xl border-4 border-yellow-300';
+            card.className = 'card object-contain bg-white rounded-3xl p-3 shadow-2xl border-4 border-yellow-300';
             card.dataset.type = data.type;
-
-            // Если картинка не найдена, она пропустится
-            card.onerror = () => { console.error("Ошибка загрузки:", data.img); createCard(); };
-
+            card.onerror = () => createCard();
             card.addEventListener('mousedown', startDrag);
             card.addEventListener('touchstart', startDrag, {passive: false});
-
             spawnZone.appendChild(card);
         }
 
-        // ЛОГИКА ПЕРЕТАСКИВАНИЯ
         let currentCard = null;
         let shiftX, shiftY;
 
@@ -158,15 +167,12 @@
             currentCard = e.target;
             const cx = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
             const cy = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
-            
             const rect = currentCard.getBoundingClientRect();
             shiftX = cx - rect.left;
             shiftY = cy - rect.top;
-
             currentCard.style.position = 'fixed';
             currentCard.style.zIndex = 1000;
             moveAt(cx, cy);
-
             document.addEventListener('mousemove', onMove);
             document.addEventListener('touchmove', onMove, {passive: false});
             document.addEventListener('mouseup', onEnd);
@@ -187,30 +193,28 @@
         function onEnd(e) {
             const cx = e.type.includes('touch') ? e.changedTouches[0].clientX : e.clientX;
             const cy = e.type.includes('touch') ? e.changedTouches[0].clientY : e.clientY;
-
             currentCard.style.visibility = 'hidden';
             const elemBelow = document.elementFromPoint(cx, cy);
             const dropZone = elemBelow ? elemBelow.closest('.basket') : null;
             currentCard.style.visibility = 'visible';
 
             if (dropZone && dropZone.dataset.sound === currentCard.dataset.type) {
-                // ПРАВИЛЬНЫЙ ОТВЕТ
                 updateScore(10);
                 if (dropZone.id === 'basket-s') {
                     sonyaSteps++;
-                    // Шаг немного уменьшен (с 12 до 10), так как персонажи шире
-                    document.getElementById('sonya').style.left = `calc(1rem + ${sonyaSteps * 10}%)`;
+                    const moveX = (sonyaSteps / totalSteps) * 35; 
+                    document.getElementById('sonya').style.transform = `translateX(${moveX}vw)`;
                 } else {
-                    SimaSteps++;
-                    document.getElementById('Sima').style.right = `calc(1rem + ${SimaSteps * 10}%)`;
+                    simaSteps++;
+                    const moveX = (simaSteps / totalSteps) * -35; 
+                    document.getElementById('sima').style.transform = `translateX(${moveX}vw)`;
                 }
                 currentCard.remove();
                 setTimeout(createCard, 500);
             } else {
-                // ОШИБКА
                 updateScore(-5);
                 if (dropZone) {
-                    const girlId = dropZone.id === 'basket-s' ? 'Sima' : 'sonya';
+                    const girlId = dropZone.id === 'basket-s' ? 'sima' : 'sonya';
                     document.getElementById(girlId).classList.add('shake');
                     setTimeout(() => document.getElementById(girlId).classList.remove('shake'), 500);
                 }
@@ -219,7 +223,6 @@
                 currentCard.style.top = '50%';
                 currentCard.style.transform = 'translate(-50%, -50%)';
             }
-
             document.removeEventListener('mousemove', onMove);
             document.removeEventListener('touchmove', onMove);
             document.removeEventListener('mouseup', onEnd);
